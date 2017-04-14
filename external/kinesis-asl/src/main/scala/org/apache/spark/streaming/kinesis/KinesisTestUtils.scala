@@ -27,7 +27,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Random, Success, Try}
 
 import com.amazonaws.auth.{AWSCredentials, DefaultAWSCredentialsProviderChain}
-import com.amazonaws.regions.RegionUtils
+import com.amazonaws.regions.{RegionUtils, ServiceAbbreviations}
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
 import com.amazonaws.services.kinesis.AmazonKinesisClient
@@ -54,11 +54,23 @@ private[kinesis] class KinesisTestUtils(streamShardCount: Int = 2) extends Loggi
   @volatile
   private var _streamName: String = _
 
-  protected lazy val kinesisClient = {
-    val client = new AmazonKinesisClient(KinesisTestUtils.getAWSCredentials())
-    client.setEndpoint(endpointUrl)
-    client
+  lazy val testCredentials = KinesisTestUtils.getAWSCredentials()
+
+  lazy val clientFactory = new KinesisClientFactory( endpointUrl,
+                                                     testCredentials.getAWSAccessKeyId,
+                                                     testCredentials.getAWSSecretKey )
+  {
+    override def getServicePrefix = ServiceAbbreviations.Kinesis
+
+    override def getKinesisClient =
+    {
+      val client = new AmazonKinesisClient(getCredentialsProvider)
+      client.setEndpoint(endpointURL)
+      client
+    }
   }
+
+  protected lazy val kinesisClient = clientFactory.getKinesisClient
 
   private lazy val dynamoDB = {
     val dynamoDBClient = new AmazonDynamoDBClient(new DefaultAWSCredentialsProviderChain())

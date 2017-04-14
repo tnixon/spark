@@ -135,11 +135,11 @@ abstract class KinesisStreamTests(aggregateTestData: Boolean) extends KinesisFun
     val nonEmptyRDD = kinesisStream.createBlockRDD(time, blockInfos)
     nonEmptyRDD shouldBe a [KinesisBackedBlockRDD[_]]
     val kinesisRDD = nonEmptyRDD.asInstanceOf[KinesisBackedBlockRDD[_]]
-    assert(kinesisRDD.regionName === dummyRegionName)
-    assert(kinesisRDD.endpointUrl === dummyEndpointUrl)
+    assert(kinesisRDD.clientFactory.getRegionName === dummyRegionName)
+    assert(kinesisRDD.clientFactory.endpointURL === dummyEndpointUrl)
     assert(kinesisRDD.retryTimeoutMs === batchDuration.milliseconds)
-    assert(kinesisRDD.awsCredentialsOption ===
-      Some(SerializableAWSCredentials(dummyAWSAccessKey, dummyAWSSecretKey)))
+    assert(kinesisRDD.clientFactory.awsAccessKeyId == dummyAWSAccessKey)
+    assert(kinesisRDD.clientFactory.awsSecretKey == dummyAWSSecretKey)
     assert(nonEmptyRDD.partitions.size === blockInfos.size)
     nonEmptyRDD.partitions.foreach { _ shouldBe a [KinesisBackedBlockRDDPartition] }
     val partitions = nonEmptyRDD.partitions.map {

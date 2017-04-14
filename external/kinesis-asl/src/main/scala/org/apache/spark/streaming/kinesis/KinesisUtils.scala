@@ -18,7 +18,9 @@ package org.apache.spark.streaming.kinesis
 
 import scala.reflect.ClassTag
 
-import com.amazonaws.regions.RegionUtils
+import com.amazonaws.auth.{AWSCredentialsProvider, DefaultAWSCredentialsProviderChain}
+import com.amazonaws.regions.{RegionUtils, ServiceAbbreviations}
+import com.amazonaws.services.kinesis.{AmazonKinesis, AmazonKinesisClient}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream
 import com.amazonaws.services.kinesis.model.Record
 
@@ -71,9 +73,15 @@ object KinesisUtils {
     val cleanedHandler = ssc.sc.clean(messageHandler)
     // Setting scope to override receiver stream's scope of "receiver stream"
     ssc.withNamedScope("kinesis stream") {
-      new KinesisInputDStream[T](ssc, streamName, endpointUrl, validateRegion(regionName),
-        initialPositionInStream, kinesisAppName, checkpointInterval, storageLevel,
-        cleanedHandler, None)
+      new KinesisInputDStream[T]( ssc,
+                                  streamName,
+                                  validateRegion(regionName),
+                                  kinesisClientBuilder(endpointUrl),
+                                  initialPositionInStream,
+                                  kinesisAppName,
+                                  checkpointInterval,
+                                  storageLevel,
+                                  cleanedHandler )
     }
   }
 
@@ -123,9 +131,15 @@ object KinesisUtils {
     // scalastyle:on
     val cleanedHandler = ssc.sc.clean(messageHandler)
     ssc.withNamedScope("kinesis stream") {
-      new KinesisInputDStream[T](ssc, streamName, endpointUrl, validateRegion(regionName),
-        initialPositionInStream, kinesisAppName, checkpointInterval, storageLevel,
-        cleanedHandler, Some(SerializableAWSCredentials(awsAccessKeyId, awsSecretKey)))
+      new KinesisInputDStream[T]( ssc,
+                                  streamName,
+                                  validateRegion(regionName),
+                                  kinesisClientBuilder(endpointUrl, awsAccessKeyId, awsSecretKey),
+                                  initialPositionInStream,
+                                  kinesisAppName,
+                                  checkpointInterval,
+                                  storageLevel,
+                                  cleanedHandler )
     }
   }
 
@@ -167,9 +181,15 @@ object KinesisUtils {
       storageLevel: StorageLevel): ReceiverInputDStream[Array[Byte]] = {
     // Setting scope to override receiver stream's scope of "receiver stream"
     ssc.withNamedScope("kinesis stream") {
-      new KinesisInputDStream[Array[Byte]](ssc, streamName, endpointUrl, validateRegion(regionName),
-        initialPositionInStream, kinesisAppName, checkpointInterval, storageLevel,
-        defaultMessageHandler, None)
+      new KinesisInputDStream[Array[Byte]]( ssc,
+                                            streamName,
+                                            validateRegion(regionName),
+                                            kinesisClientBuilder(endpointUrl),
+                                            initialPositionInStream,
+                                            kinesisAppName,
+                                            checkpointInterval,
+                                            storageLevel,
+                                            defaultMessageHandler )
     }
   }
 
@@ -213,9 +233,17 @@ object KinesisUtils {
       awsAccessKeyId: String,
       awsSecretKey: String): ReceiverInputDStream[Array[Byte]] = {
     ssc.withNamedScope("kinesis stream") {
-      new KinesisInputDStream[Array[Byte]](ssc, streamName, endpointUrl, validateRegion(regionName),
-        initialPositionInStream, kinesisAppName, checkpointInterval, storageLevel,
-        defaultMessageHandler, Some(SerializableAWSCredentials(awsAccessKeyId, awsSecretKey)))
+      new KinesisInputDStream[Array[Byte]]( ssc,
+                                            streamName,
+                                            validateRegion(regionName),
+                                            kinesisClientBuilder( endpointUrl,
+                                                                  awsAccessKeyId,
+                                                                  awsSecretKey ),
+                                            initialPositionInStream,
+                                            kinesisAppName,
+                                            checkpointInterval,
+                                            storageLevel,
+                                            defaultMessageHandler )
     }
   }
 
@@ -404,9 +432,30 @@ object KinesisUtils {
       defaultMessageHandler(_), awsAccessKeyId, awsSecretKey)
   }
 
-  private def getRegionByEndpoint(endpointUrl: String): String = {
-    RegionUtils.getRegionByEndpoint(endpointUrl).getName()
-  }
+  private def kinesisClientBuilder( endpointURL: String,
+                                    awsAccessKeyId: String,
+                                    awsSecretKey: String
+                                  ): KinesisClientFactory =
+    new KinesisClientFactory( endpointURL, awsAccessKeyId, awsSecretKey )
+    {
+      override def getServicePrefix = ServiceAbbreviations.Kinesis
+
+      override def getKinesisClient: AmazonKinesis =
+      {
+        val client = new AmazonKinesisClient(getCredentialsProvider)
+        client.setEndpoint(endpointURL)
+        client
+      }
+    }
+
+  private def kinesisClientBuilder( endpointURL: String ): KinesisClientFactory =
+    kinesisClientBuilder( endpointURL, new DefaultAWSCredentialsProviderChain )
+
+  private def kinesisClientBuilder( endpointUrl: String,
+                                    credentials: AWSCredentialsProvider ): KinesisClientFactory =
+    kinesisClientBuilder( endpointUrl,
+                          credentials.getCredentials.getAWSAccessKeyId,
+                          credentials.getCredentials.getAWSSecretKey )
 
   private def validateRegion(regionName: String): String = {
     Option(RegionUtils.getRegion(regionName)).map { _.getName }.getOrElse {
@@ -416,7 +465,7 @@ object KinesisUtils {
 
   private[kinesis] def defaultMessageHandler(record: Record): Array[Byte] = {
     if (record == null) return null
-    val byteBuffer = record.getData()
+    val byteBuffer = record.getData
     val byteArray = new Array[Byte](byteBuffer.remaining())
     byteBuffer.get(byteArray)
     byteArray

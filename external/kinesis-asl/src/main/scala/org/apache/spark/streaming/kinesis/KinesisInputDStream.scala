@@ -32,14 +32,13 @@ import org.apache.spark.streaming.scheduler.ReceivedBlockInfo
 private[kinesis] class KinesisInputDStream[T: ClassTag](
     _ssc: StreamingContext,
     streamName: String,
-    endpointUrl: String,
     regionName: String,
+    clientFactory: KinesisClientFactory,
     initialPositionInStream: InitialPositionInStream,
     checkpointAppName: String,
     checkpointInterval: Duration,
     storageLevel: StorageLevel,
-    messageHandler: Record => T,
-    awsCredentialsOption: Option[SerializableAWSCredentials]
+    messageHandler: Record => T
   ) extends ReceiverInputDStream[T](_ssc) {
 
   private[streaming]
@@ -57,11 +56,10 @@ private[kinesis] class KinesisInputDStream[T: ClassTag](
       logDebug(s"Creating KinesisBackedBlockRDD for $time with ${seqNumRanges.length} " +
           s"seq number ranges: ${seqNumRanges.mkString(", ")} ")
       new KinesisBackedBlockRDD(
-        context.sc, regionName, endpointUrl, blockIds, seqNumRanges,
+        context.sc, clientFactory, blockIds, seqNumRanges,
         isBlockIdValid = isBlockIdValid,
         retryTimeoutMs = ssc.graph.batchDuration.milliseconds.toInt,
-        messageHandler = messageHandler,
-        awsCredentialsOption = awsCredentialsOption)
+        messageHandler = messageHandler )
     } else {
       logWarning("Kinesis sequence number information was not present with some block metadata," +
         " it may not be possible to recover from failures")
@@ -70,7 +68,7 @@ private[kinesis] class KinesisInputDStream[T: ClassTag](
   }
 
   override def getReceiver(): Receiver[T] = {
-    new KinesisReceiver(streamName, endpointUrl, regionName, initialPositionInStream,
-      checkpointAppName, checkpointInterval, storageLevel, messageHandler, awsCredentialsOption)
+    new KinesisReceiver(streamName, regionName, clientFactory, initialPositionInStream,
+      checkpointAppName, checkpointInterval, storageLevel, messageHandler)
   }
 }
