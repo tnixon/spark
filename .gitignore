@@ -87,3 +87,7 @@ spark-warehouse/
 *.Rproj.*
 
 .Rproj.user
+external/kinesis-asl-assembly/dev
+external/kinesis-asl-assembly/scalastyle-config.xml
+external/kinesis-asl/dev
+external/kinesis-asl/scalastyle-config.xml
