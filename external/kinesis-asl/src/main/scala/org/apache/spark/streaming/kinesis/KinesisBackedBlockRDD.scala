@@ -69,7 +69,7 @@ class KinesisBackedBlockRDDPartition(
 private[kinesis]
 class KinesisBackedBlockRDD[T: ClassTag](
     sc: SparkContext,
-    val clientFactory: KinesisClientFactory,
+    val clientFactory: KCLClientFactory,
     @transient private val _blockIds: Array[BlockId],
     @transient val arrayOfseqNumberRanges: Array[SequenceNumberRanges],
     @transient private val isBlockIdValid: Array[Boolean] = Array.empty,
@@ -120,7 +120,7 @@ class KinesisBackedBlockRDD[T: ClassTag](
  */
 private[kinesis]
 class KinesisSequenceRangeIterator(
-    clientFactory: KinesisClientFactory,
+    clientFactory: KCLClientFactory,
     range: SequenceNumberRange,
     retryTimeoutMs: Int) extends NextIterator[Record] with Logging {
 

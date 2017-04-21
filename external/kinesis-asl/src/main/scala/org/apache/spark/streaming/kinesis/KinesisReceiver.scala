@@ -23,7 +23,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
-import com.amazonaws.auth.{AWSCredentials, AWSCredentialsProvider, DefaultAWSCredentialsProviderChain}
+import com.amazonaws.auth.AWSCredentials
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.{IRecordProcessor, IRecordProcessorCheckpointer, IRecordProcessorFactory}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{InitialPositionInStream, KinesisClientLibConfiguration, Worker}
 import com.amazonaws.services.kinesis.model.Record
@@ -80,7 +80,7 @@ case class SerializableAWSCredentials(accessKeyId: String, secretKey: String)
 private[kinesis] class KinesisReceiver[T](
     val streamName: String,
     regionName: String,
-    clientFactory: KinesisClientFactory,
+    clientFactory: KCLClientFactory,
     initialPositionInStream: InitialPositionInStream,
     checkpointAppName: String,
     checkpointInterval: Duration,

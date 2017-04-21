@@ -20,13 +20,11 @@ import scala.reflect.ClassTag
 
 import com.amazonaws.auth.{AWSCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.internal.StaticCredentialsProvider
-import com.amazonaws.regions.{RegionUtils, ServiceAbbreviations}
+import com.amazonaws.regions.RegionUtils
 import com.amazonaws.services.cloudwatch.model.ResourceNotFoundException
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.model.{DescribeTableRequest, Record, TableStatus}
-import com.amazonaws.services.dynamodbv2.streamsadapter.AmazonDynamoDBStreamsAdapterClient
 import com.amazonaws.services.dynamodbv2.streamsadapter.model.RecordAdapter
-import com.amazonaws.services.kinesis.AmazonKinesis
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream
 import com.amazonaws.services.kinesis.model.{Record => KinesisRecord}
 
@@ -93,7 +91,7 @@ object DynamoDBStreamUtils
         ssc,
         ddbStreamARNForTable(tableName),
         validateRegion(regionName),
-        kinesisClientBuilder(endpointUrl),
+        new DynamoDBStreamsClientFactory(endpointUrl),
         initialPositionInStream,
         kinesisAppName,
         checkpointInterval,
@@ -160,7 +158,7 @@ object DynamoDBStreamUtils
         ssc,
         ddbStreamARNForTable( tableName, awsAccessKeyId, awsSecretKey ),
         validateRegion(regionName),
-        kinesisClientBuilder( endpointUrl, awsAccessKeyId, awsSecretKey ),
+        new DynamoDBStreamsClientFactory( endpointUrl, awsAccessKeyId, awsSecretKey ),
         initialPositionInStream,
         kinesisAppName,
         checkpointInterval,
@@ -219,7 +217,7 @@ object DynamoDBStreamUtils
         ssc,
         ddbStreamARNForTable(tableName),
         validateRegion(regionName),
-        kinesisClientBuilder(endpointUrl),
+        new DynamoDBStreamsClientFactory(endpointUrl),
         initialPositionInStream,
         kinesisAppName,
         checkpointInterval,
@@ -280,7 +278,7 @@ object DynamoDBStreamUtils
         ssc,
         ddbStreamARNForTable( tableName, awsAccessKeyId, awsSecretKey ),
         validateRegion(regionName),
-        kinesisClientBuilder( endpointUrl, awsAccessKeyId, awsSecretKey ),
+        new DynamoDBStreamsClientFactory( endpointUrl, awsAccessKeyId, awsSecretKey ),
         initialPositionInStream,
         kinesisAppName,
         checkpointInterval,
@@ -568,31 +566,6 @@ object DynamoDBStreamUtils
     ddbClient.shutdown()
     table.getLatestStreamArn
   }
-
-  private def kinesisClientBuilder( endpointURL: String,
-                                    awsAccessKeyId: String,
-                                    awsSecretKey: String ): KinesisClientFactory =
-    new KinesisClientFactory( endpointURL, awsAccessKeyId, awsSecretKey )
-    {
-      override def getServicePrefix: String = ServiceAbbreviations.DynamodbStreams
-
-      override def getKinesisClient: AmazonKinesis =
-      {
-        val client = new AmazonDynamoDBStreamsAdapterClient(getCredentialsProvider)
-        client.setEndpoint(endpointURL)
-        client
-      }
-    }
-
-  private def kinesisClientBuilder( endpointURL: String ): KinesisClientFactory =
-    kinesisClientBuilder( endpointURL, new DefaultAWSCredentialsProviderChain )
-
-  private def kinesisClientBuilder( endpointURL: String,
-                                    credentials: AWSCredentialsProvider ): KinesisClientFactory =
-    kinesisClientBuilder( endpointURL,
-                          credentials.getCredentials.getAWSAccessKeyId,
-                          credentials.getCredentials.getAWSSecretKey )
-
 
   private def validateRegion(regionName: String): String = {
     Option(RegionUtils.getRegion(regionName)).map { _.getName }.getOrElse {

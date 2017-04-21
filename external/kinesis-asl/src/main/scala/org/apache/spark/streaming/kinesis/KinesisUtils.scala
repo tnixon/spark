@@ -18,9 +18,7 @@ package org.apache.spark.streaming.kinesis
 
 import scala.reflect.ClassTag
 
-import com.amazonaws.auth.{AWSCredentialsProvider, DefaultAWSCredentialsProviderChain}
-import com.amazonaws.regions.{RegionUtils, ServiceAbbreviations}
-import com.amazonaws.services.kinesis.{AmazonKinesis, AmazonKinesisClient}
+import com.amazonaws.regions.RegionUtils
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream
 import com.amazonaws.services.kinesis.model.Record
 
@@ -76,7 +74,7 @@ object KinesisUtils {
       new KinesisInputDStream[T]( ssc,
                                   streamName,
                                   validateRegion(regionName),
-                                  kinesisClientBuilder(endpointUrl),
+                                  new KinesisClientFactory(endpointUrl),
                                   initialPositionInStream,
                                   kinesisAppName,
                                   checkpointInterval,
@@ -134,7 +132,9 @@ object KinesisUtils {
       new KinesisInputDStream[T]( ssc,
                                   streamName,
                                   validateRegion(regionName),
-                                  kinesisClientBuilder(endpointUrl, awsAccessKeyId, awsSecretKey),
+                                  new KinesisClientFactory( endpointUrl,
+                                                            awsAccessKeyId,
+                                                            awsSecretKey ),
                                   initialPositionInStream,
                                   kinesisAppName,
                                   checkpointInterval,
@@ -184,7 +184,7 @@ object KinesisUtils {
       new KinesisInputDStream[Array[Byte]]( ssc,
                                             streamName,
                                             validateRegion(regionName),
-                                            kinesisClientBuilder(endpointUrl),
+                                            new KinesisClientFactory(endpointUrl),
                                             initialPositionInStream,
                                             kinesisAppName,
                                             checkpointInterval,
@@ -236,9 +236,9 @@ object KinesisUtils {
       new KinesisInputDStream[Array[Byte]]( ssc,
                                             streamName,
                                             validateRegion(regionName),
-                                            kinesisClientBuilder( endpointUrl,
-                                                                  awsAccessKeyId,
-                                                                  awsSecretKey ),
+                                            new KinesisClientFactory( endpointUrl,
+                                                                      awsAccessKeyId,
+                                                                      awsSecretKey ),
                                             initialPositionInStream,
                                             kinesisAppName,
                                             checkpointInterval,
@@ -431,31 +431,6 @@ object KinesisUtils {
       initialPositionInStream, checkpointInterval, storageLevel,
       defaultMessageHandler(_), awsAccessKeyId, awsSecretKey)
   }
-
-  private def kinesisClientBuilder( endpointURL: String,
-                                    awsAccessKeyId: String,
-                                    awsSecretKey: String
-                                  ): KinesisClientFactory =
-    new KinesisClientFactory( endpointURL, awsAccessKeyId, awsSecretKey )
-    {
-      override def getServicePrefix = ServiceAbbreviations.Kinesis
-
-      override def getKinesisClient: AmazonKinesis =
-      {
-        val client = new AmazonKinesisClient(getCredentialsProvider)
-        client.setEndpoint(endpointURL)
-        client
-      }
-    }
-
-  private def kinesisClientBuilder( endpointURL: String ): KinesisClientFactory =
-    kinesisClientBuilder( endpointURL, new DefaultAWSCredentialsProviderChain )
-
-  private def kinesisClientBuilder( endpointUrl: String,
-                                    credentials: AWSCredentialsProvider ): KinesisClientFactory =
-    kinesisClientBuilder( endpointUrl,
-                          credentials.getCredentials.getAWSAccessKeyId,
-                          credentials.getCredentials.getAWSSecretKey )
 
   private def validateRegion(regionName: String): String = {
     Option(RegionUtils.getRegion(regionName)).map { _.getName }.getOrElse {

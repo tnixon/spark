@@ -33,7 +33,7 @@ private[kinesis] class KinesisInputDStream[T: ClassTag](
     _ssc: StreamingContext,
     streamName: String,
     regionName: String,
-    clientFactory: KinesisClientFactory,
+    clientFactory: KCLClientFactory,
     initialPositionInStream: InitialPositionInStream,
     checkpointAppName: String,
     checkpointInterval: Duration,

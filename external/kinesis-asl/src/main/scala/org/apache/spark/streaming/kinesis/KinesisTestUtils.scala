@@ -27,10 +27,10 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Random, Success, Try}
 
 import com.amazonaws.auth.{AWSCredentials, DefaultAWSCredentialsProviderChain}
-import com.amazonaws.regions.{RegionUtils, ServiceAbbreviations}
+import com.amazonaws.regions.RegionUtils
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
-import com.amazonaws.services.kinesis.AmazonKinesisClient
+import com.amazonaws.services.kinesis.AmazonKinesis
 import com.amazonaws.services.kinesis.model._
 
 import org.apache.spark.internal.Logging
@@ -59,16 +59,6 @@ private[kinesis] class KinesisTestUtils(streamShardCount: Int = 2) extends Loggi
   lazy val clientFactory = new KinesisClientFactory( endpointUrl,
                                                      testCredentials.getAWSAccessKeyId,
                                                      testCredentials.getAWSSecretKey )
-  {
-    override def getServicePrefix = ServiceAbbreviations.Kinesis
-
-    override def getKinesisClient =
-    {
-      val client = new AmazonKinesisClient(getCredentialsProvider)
-      client.setEndpoint(endpointURL)
-      client
-    }
-  }
 
   protected lazy val kinesisClient = clientFactory.getKinesisClient
 
@@ -273,8 +263,8 @@ private[kinesis] trait KinesisDataGenerator {
   def sendData(streamName: String, data: Seq[Int]): Map[String, Seq[(Int, String)]]
 }
 
-private[kinesis] class SimpleDataGenerator(
-    client: AmazonKinesisClient) extends KinesisDataGenerator {
+private[kinesis] class SimpleDataGenerator(client: AmazonKinesis)
+  extends KinesisDataGenerator {
   override def sendData(streamName: String, data: Seq[Int]): Map[String, Seq[(Int, String)]] = {
     val shardIdToSeqNumbers = new mutable.HashMap[String, ArrayBuffer[(Int, String)]]()
     data.foreach { num =>
