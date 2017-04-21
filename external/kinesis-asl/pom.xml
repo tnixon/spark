@@ -28,7 +28,7 @@
   <artifactId>spark-streaming-kinesis-asl_2.11</artifactId>
   <packaging>jar</packaging>
   <name>Spark Kinesis Integration</name>
-  <version>2.1.0-ddb-v2</version>
+  <version>2.1.0-ddb-v3</version>
 
   <properties>
     <sbt.project.name>streaming-kinesis-asl</sbt.project.name>
